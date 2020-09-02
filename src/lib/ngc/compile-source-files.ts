@@ -5,7 +5,7 @@ import { redirectWriteFileCompilerHost } from '../ts/redirect-write-file-compile
 import { cacheCompilerHost } from '../ts/cache-compiler-host';
 import { StylesheetProcessor } from '../ng-v5/entry-point/resources/stylesheet-processor';
 import { BuildGraph } from '../brocc/build-graph';
-import { EntryPointNode, isEntryPointInProgress } from '../ng-v5/nodes';
+import { EntryPointNode } from '../ng-v5/nodes';
 import { NgccProcessor } from './ngcc-processor';
 import { ngccTransformCompilerHost } from '../ts/ngcc-transform-compiler-host';
 import { createEmitCallback } from './create-emit-callback';
@@ -18,11 +18,11 @@ export async function compileSourceFiles(
   extraOptions?: Partial<ng.CompilerOptions>,
   declarationDir?: string,
   ngccProcessor?: NgccProcessor,
+  entryPoint?: EntryPointNode,
 ) {
   log.debug(`ngc (v${ng.VERSION.full})`);
 
   const tsConfigOptions: ng.CompilerOptions = { ...tsConfig.options, ...extraOptions };
-  const entryPoint = graph.find(isEntryPointInProgress()) as EntryPointNode;
 
   let tsCompilerHost = cacheCompilerHost(
     graph,

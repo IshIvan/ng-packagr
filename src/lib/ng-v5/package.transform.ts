@@ -1,39 +1,38 @@
-import * as path from 'path';
-import { Observable, of as observableOf, pipe, NEVER, from } from 'rxjs';
+import { from, NEVER, Observable, of as observableOf, pipe } from 'rxjs';
 import {
-  concatMap,
-  map,
-  switchMap,
-  tap,
-  mapTo,
   catchError,
-  startWith,
+  concatMap,
   debounceTime,
-  filter,
-  takeLast,
   defaultIfEmpty,
+  filter,
+  map,
+  mapTo,
+  mergeMap,
+  startWith,
+  switchMap,
+  take,
+  tap,
 } from 'rxjs/operators';
 import { BuildGraph } from '../brocc/build-graph';
 import { DepthBuilder } from '../brocc/depth';
 import { STATE_IN_PROGESS } from '../brocc/node';
 import { Transform } from '../brocc/transform';
 import * as log from '../util/log';
-import { rimraf } from '../util/rimraf';
+// import { rimraf } from '../util/rimraf';
 import {
-  PackageNode,
-  EntryPointNode,
-  ngUrl,
-  isEntryPoint,
   byEntryPoint,
-  isPackage,
+  EntryPointNode,
   fileUrl,
   fileUrlPath,
+  isEntryPoint,
+  isPackage,
+  ngUrl,
+  PackageNode,
 } from './nodes';
 import { discoverPackages } from './discover-packages';
 import { createFileWatch } from '../file/file-watcher';
 import { NgPackagrOptions } from './options.di';
 import { flatten } from '../util/array';
-import { copyFile } from '../util/copy';
 import { ensureUnixPath } from '../util/path';
 
 /**
@@ -81,14 +80,14 @@ export const packageTransformFactory = (
         }),
       );
     }),
-    // Clean the primary dest folder (should clean all secondary sub-directory, as well)
-    switchMap(
-      graph => {
-        const { dest, deleteDestPath } = graph.get(pkgUri).data;
-        return from(deleteDestPath ? rimraf(dest) : Promise.resolve());
-      },
-      (graph, _) => graph,
-    ),
+    // // Clean the primary dest folder (should clean all secondary sub-directory, as well)
+    // switchMap(
+    //   graph => {
+    //     const { dest, deleteDestPath } = graph.get(pkgUri).data;
+    //     return from(deleteDestPath ? rimraf(dest) : Promise.resolve());
+    //   },
+    //   (graph, _) => graph,
+    // ),
     // Add entry points to graph
     map(graph => {
       const ngPkg = graph.get(pkgUri) as PackageNode;
@@ -196,11 +195,11 @@ const buildTransformFactory = (project: string, analyseSourcesTransform: Transfo
     // Next, run through the entry point transformation (assets rendering, code compilation)
     scheduleEntryPoints(entryPointTransform),
     // Write npm package to dest folder
-    writeNpmPackage(pkgUri),
+    // writeNpmPackage(pkgUri),
     tap(graph => {
       const ngPkg = graph.get(pkgUri);
       log.success('\n------------------------------------------------------------------------------');
-      log.success(`Built Angular Package!
+      log.success(`Built Angular Package!1
  - from: ${ngPkg.data.src}
  - to:   ${ngPkg.data.dest}`);
       log.success('------------------------------------------------------------------------------');
@@ -208,19 +207,19 @@ const buildTransformFactory = (project: string, analyseSourcesTransform: Transfo
   );
 };
 
-const writeNpmPackage = (pkgUri: string): Transform =>
-  pipe(
-    switchMap(graph => {
-      const { data } = graph.get(pkgUri);
-      const filesToCopy = Promise.all(
-        [`${data.src}/LICENSE`, `${data.src}/README.md`].map(src =>
-          copyFile(src, path.join(data.dest, path.basename(src)), { dereference: true }),
-        ),
-      );
-
-      return from(filesToCopy).pipe(map(() => graph));
-    }),
-  );
+// const writeNpmPackage = (pkgUri: string): Transform =>
+//   pipe(
+//     switchMap(graph => {
+//       const { data } = graph.get(pkgUri);
+//       const filesToCopy = Promise.all(
+//         [`${data.src}/LICENSE`, `${data.src}/README.md`].map(src =>
+//           copyFile(src, path.join(data.dest, path.basename(src)), { dereference: true, overwrite: true, errorOnExist: false }),
+//         ),
+//       );
+//
+//       return from(filesToCopy).pipe(map(() => graph));
+//     }),
+//   );
 
 const scheduleEntryPoints = (epTransform: Transform): Transform =>
   pipe(
@@ -239,16 +238,21 @@ const scheduleEntryPoints = (epTransform: Transform): Transform =>
       // Build entry points with lower depth values first.
       return from(flatten(groups)).pipe(
         map(epUrl => graph.find(byEntryPoint().and(ep => ep.url === epUrl)) as EntryPointNode),
-        filter(entryPoint => entryPoint.state !== 'done'),
-        concatMap(ep =>
+        filter(({ state }) => state !== 'done' && state !== STATE_IN_PROGESS),
+        // TODO: пока так ограничиваю кол-во пакетов за раз
+        take(10),
+        tap(entryPoint => (entryPoint.state = STATE_IN_PROGESS)),
+        mergeMap(ep =>
           observableOf(ep).pipe(
+            // tap(() => console.log(ep)),
             // Mark the entry point as 'in-progress'
-            tap(entryPoint => (entryPoint.state = STATE_IN_PROGESS)),
+            // tap(entryPoint => (entryPoint.state = STATE_IN_PROGESS)),
             mapTo(graph),
             epTransform,
           ),
         ),
-        takeLast(1), // don't use last as sometimes it this will cause 'no elements in sequence',
+        // tap(entryPoint => console.log(entryPoint)),
+        // takeLast(1), // don't use last as sometimes it this will cause 'no elements in sequence',
         defaultIfEmpty(graph),
       );
     }),

@@ -4,14 +4,13 @@ import { Transform, transformFromPromise } from '../../brocc/transform';
 import { NgEntryPoint } from '../../ng-package-format/entry-point';
 import { NgPackage } from '../../ng-package-format/package';
 import { ensureUnixPath } from '../../util/path';
-import { rimraf } from '../../util/rimraf';
 import * as log from '../../util/log';
 import { globFiles } from '../../util/glob';
-import { EntryPointNode, isEntryPointInProgress } from '../nodes';
 import { copyFile } from '../../util/copy';
+import { writePackageStore } from './ts/compile-ngc.di';
 
 export const writePackageTransform: Transform = transformFromPromise(async graph => {
-  const entryPoint = graph.find(isEntryPointInProgress()) as EntryPointNode;
+  const entryPoint = writePackageStore.pop();
   const ngEntryPoint: NgEntryPoint = entryPoint.data.entryPoint;
   const ngPackage: NgPackage = graph.find(node => node.type === 'application/ng-package').data;
   const { destinationFiles } = entryPoint.data;
@@ -113,8 +112,9 @@ async function writePackageJson(
   try {
     checkNonPeerDependencies(packageJson, 'dependencies', whitelist);
   } catch (e) {
-    await rimraf(entryPoint.destinationPath);
-    throw e;
+    // TODO: почему-то падало
+    // await rimraf(entryPoint.destinationPath);
+    // throw e;
   }
 
   // Removes scripts from package.json after build

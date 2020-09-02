@@ -1,18 +1,20 @@
-import { map, switchMap } from 'rxjs/operators';
+import { concatMap, map, tap } from 'rxjs/operators';
 import { from as fromPromise, pipe } from 'rxjs';
 import { Transform } from '../../brocc/transform';
 import { FlattenOpts, flattenToFesm, flattenToUmd, flattenToUmdMin } from '../../flatten/flatten';
 import { NgEntryPoint } from '../../ng-package-format/entry-point';
-import { isEntryPoint, isEntryPointInProgress, EntryPointNode } from '../nodes';
+import { EntryPointNode, isEntryPoint, isEntryPointInNgcc } from '../nodes';
 import * as log from '../../util/log';
 import { DestinationFiles } from '../../ng-package-format/shared';
 import { BuildGraph } from '../../brocc/build-graph';
 import { DependencyList } from '../../flatten/external-module-id-strategy';
 import { unique } from '../../util/array';
+import { writePackageStore } from './ts/compile-ngc.di';
 
 export const writeBundlesTransform: Transform = pipe(
-  switchMap(graph => {
-    const entryPoint = graph.find(isEntryPointInProgress()) as EntryPointNode;
+  concatMap(graph => {
+    const entryPoint = graph.find(isEntryPointInNgcc()) as EntryPointNode;
+    entryPoint.state = 'asd';
     const { destinationFiles, entryPoint: ngEntryPoint, tsConfig } = entryPoint.data;
 
     // Add UMD module IDs for dependencies
@@ -40,7 +42,10 @@ export const writeBundlesTransform: Transform = pipe(
       dependencyList: getDependencyListForGraph(graph),
     };
 
-    return fromPromise(writeFlatBundleFiles(destinationFiles, opts)).pipe(map(() => graph));
+    return fromPromise(writeFlatBundleFiles(destinationFiles, opts)).pipe(
+      map(() => graph),
+      tap(() => writePackageStore.push(entryPoint)),
+    );
   }),
 );
 

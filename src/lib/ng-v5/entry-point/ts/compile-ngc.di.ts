@@ -5,6 +5,9 @@ import { compileNgcTransform } from './compile-ngc.transform';
 
 export const COMPILE_NGC_TOKEN = new InjectionToken<Transform>(`ng.v5.compileNgcTransform`);
 
+export const ngCompileStore = [];
+export const writePackageStore = [];
+
 export const COMPILE_NGC_TRANSFORM: TransformProvider = provideTransform({
   provide: COMPILE_NGC_TOKEN,
   useFactory: () => compileNgcTransform,

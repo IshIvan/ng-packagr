@@ -24,6 +24,14 @@ export function isInProgress(node: Node): boolean {
   return node.state === STATE_IN_PROGESS;
 }
 
+export function isInNgcc(node: Node): boolean {
+  return node.state === 'ngcc';
+}
+
+export function isInAsd(node: Node): boolean {
+  return node.state === 'asd';
+}
+
 export function isPending(node: Node): boolean {
   return node.state === STATE_PENDING;
 }

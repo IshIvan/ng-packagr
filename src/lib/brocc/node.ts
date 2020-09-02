@@ -15,7 +15,7 @@ export class Node {
 
   public data: any;
 
-  public state: NodeState = '';
+  public state: any = '';
 
   public filter(by: (value: Node, index: number) => boolean): Node[] {
     return this._dependents.filter(by);

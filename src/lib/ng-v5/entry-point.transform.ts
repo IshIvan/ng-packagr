@@ -1,9 +1,10 @@
 import { pipe } from 'rxjs';
 import { STATE_DONE } from '../brocc/node';
-import { isInProgress } from '../brocc/select';
+import { isInAsd, isInProgress } from '../brocc/select';
 import { Transform, transformFromPromise } from '../brocc/transform';
 import * as log from '../util/log';
 import { byEntryPoint } from './nodes';
+import { ngCompileStore } from './entry-point/ts/compile-ngc.di';
 
 /**
  * A re-write of the `transformSources()` script that transforms an entry point from sources to distributable format.
@@ -44,9 +45,13 @@ export const entryPointTransformFactory = (
     transformFromPromise(async graph => {
       // Peek the first entry point from the graph
       const entryPoint = graph.find(byEntryPoint().and(isInProgress));
+
+      ngCompileStore.push(entryPoint);
+
       log.msg('\n------------------------------------------------------------------------------');
       log.msg(`Building entry point '${entryPoint.data.entryPoint.moduleId}'`);
       log.msg('------------------------------------------------------------------------------');
+      entryPoint.state = 'ngcc';
     }),
     // TypeScript sources compilation
     compileTs,
@@ -54,7 +59,7 @@ export const entryPointTransformFactory = (
     writeBundles,
     writePackage,
     transformFromPromise(async graph => {
-      const entryPoint = graph.find(byEntryPoint().and(isInProgress));
+      const entryPoint = graph.find(byEntryPoint().and(isInAsd));
       entryPoint.state = STATE_DONE;
     }),
 
